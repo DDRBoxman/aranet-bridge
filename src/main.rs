@@ -54,9 +54,13 @@ async fn main() -> Result<()> {
 }
 
 async fn read_sensor_data(device: &Aranet4, mut stream: &TcpStream) -> Result<()> {
+    device.reconnect().await?;
+
     let mut buf = [0u8; 1024];
 
     let data = device.read_data().await?;
+
+    device.disconnect().await?;
 
     let payload = Payload {
         co2: data.co2,

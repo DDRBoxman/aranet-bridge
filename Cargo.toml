@@ -7,7 +7,7 @@ edition = "2021"
 
 [dependencies]
 anyhow = "1.0.75"
-aranet-btle = "0.1.0"
+aranet-btle = "0.1.1"
 mqttrs = "0.4.1"
 tokio = { version = "1", features = ["full"] }
 serde = { version = "1.0", features = ["derive"] }
