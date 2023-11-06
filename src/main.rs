@@ -1,9 +1,10 @@
 use anyhow::Result;
-use aranet_btle::Aranet4;
 use mqttrs::{encode_slice, Connect, Packet, Protocol, Publish, QosPid};
 use serde::Serialize;
 use std::{io::Write, net::TcpStream};
+use tokio::pin;
 use tokio::time;
+use tokio_stream::StreamExt;
 
 #[derive(Serialize, Debug)]
 struct Payload {
@@ -13,7 +14,8 @@ struct Payload {
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    let device = aranet_btle::connect().await?;
+    let aranet_stream = aranet_btle::scan().await?;
+    pin!(aranet_stream);
 
     let mut stream = TcpStream::connect("127.0.0.1:1883")?;
 
@@ -36,7 +38,6 @@ async fn main() -> Result<()> {
     stream.write_all(&buf[..len])?;
 
     let mut heartbeat = time::interval(time::Duration::from_secs(30));
-    let mut read = time::interval(time::Duration::from_secs(60 * 5));
 
     loop {
         tokio::select! {
@@ -46,40 +47,28 @@ async fn main() -> Result<()> {
 
             stream.write_all(&buf[..len])?;
            },
-           _ = read.tick() => read_sensor_data(&device, &stream).await?
+           Some(data) = aranet_stream.next() => {
+            let payload = Payload {
+                co2: data.sensor_data.co2,
+                temp: data.sensor_data.temperature,
+            };
+
+            let json = serde_json::to_vec(&payload)?;
+
+            let publish = Publish {
+                dup: false,
+                qospid: QosPid::AtMostOnce,
+                retain: false,
+                topic_name: "home/aranet4",
+                payload: &json,
+            };
+            let pkt: Packet = publish.into();
+            let len = encode_slice(&pkt, &mut buf).unwrap();
+
+            stream.write_all(&buf[..len])?;
+           }
         }
     }
-
-    Ok(())
-}
-
-async fn read_sensor_data(device: &Aranet4, mut stream: &TcpStream) -> Result<()> {
-    device.reconnect().await?;
-
-    let mut buf = [0u8; 1024];
-
-    let data = device.read_data().await?;
-
-    device.disconnect().await?;
-
-    let payload = Payload {
-        co2: data.co2,
-        temp: data.temperature,
-    };
-
-    let json = serde_json::to_vec(&payload)?;
-
-    let publish = Publish {
-        dup: false,
-        qospid: QosPid::AtMostOnce,
-        retain: false,
-        topic_name: "home/aranet4",
-        payload: &json,
-    };
-    let pkt: Packet = publish.into();
-    let len = encode_slice(&pkt, &mut buf).unwrap();
-
-    stream.write_all(&buf[..len])?;
 
     Ok(())
 }

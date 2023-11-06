@@ -33,17 +33,19 @@ dependencies = [
  "serde",
  "serde_json",
  "tokio",
+ "tokio-stream",
 ]
 
 [[package]]
 name = "aranet-btle"
-version = "0.1.1"
+version = "0.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bb67fabed2666c5439cd87bea7c2f2f7a2454982ce1fa6ff32fad2ec21c5d640"
+checksum = "120c139c16fc88eac3269166be85ec22304bbcaa51f47ea7e6da208ffbc21670"
 dependencies = [
  "btleplug",
  "byteorder",
  "thiserror",
+ "tokio-stream",
  "uuid",
 ]
 
